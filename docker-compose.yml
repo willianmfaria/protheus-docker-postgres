@@ -1,0 +1,113 @@
+# Protheus 12.1.2410 com as imagens oficiais da TOTVS (somente desenvolvimento).
+# Banco, DBAccess e AppServer foram publicados juntos, em 06/05/2025. Nessa data não saiu License:
+# a 3.6.3 é a última antes da 3.7.0, que saiu com a 2510. Evitar "latest": ela muda de release sem aviso.
+# As imagens só existem para amd64; no Apple Silicon rodam emuladas, daí o "platform".
+
+name: docker-protheus-2410
+
+services:
+  license:
+    platform: linux/amd64
+    image: totvsengpro/license-dev:3.6.3
+    container_name: protheus_license_2410
+    environment:
+      - TZ=${TIME_ZONE}
+    ports:
+      - "${LICENSE_HOST_PORT}:5555"
+    healthcheck:
+      # As imagens oficiais não têm nc; o teste de porta é feito pelo próprio bash.
+      test: ["CMD", "bash", "-c", "</dev/tcp/localhost/5555"]
+      interval: 10s
+      timeout: 3s
+      retries: 30
+      start_period: 30s
+
+  database:
+    platform: linux/amd64
+    image: totvsengpro/postgres-dev:12.1.2410_bra
+    container_name: protheus_postgres_2410
+    environment:
+      - TZ=${TIME_ZONE}
+    ports:
+      - "${DB_HOST_PORT}:5432"
+    volumes:
+      # Precisa ser volume nomeado: só assim o Docker copia para ele o banco que já vem na imagem.
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d protheus"]
+      interval: 10s
+      timeout: 3s
+      retries: 30
+      start_period: 30s
+
+  dbaccess:
+    platform: linux/amd64
+    image: totvsengpro/dbaccess-postgres-dev:24.1.0.2
+    container_name: protheus_dbaccess_2410
+    entrypoint: ["/bin/sh", "/opt/totvs/dbaccess-init.sh"]
+    environment:
+      - TZ=${TIME_ZONE}
+    ports:
+      - "${DBACCESS_HOST_PORT}:7890"
+    volumes:
+      - ./dbaccess/dbaccess-init.sh:/opt/totvs/dbaccess-init.sh:ro
+      - ./dbaccess/odbc.ini:/etc/odbc.ini:ro
+    depends_on:
+      database:
+        condition: service_healthy
+      license:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "bash", "-c", "</dev/tcp/localhost/7890"]
+      interval: 10s
+      timeout: 3s
+      retries: 30
+      start_period: 30s
+
+  appserver:
+    platform: linux/amd64
+    image: totvsengpro/appserver-dev:24.3.0.5
+    container_name: protheus_appserver_2410
+    environment:
+      - TZ=${TIME_ZONE}
+    ports:
+      - "${APPSERVER_HOST_PORT}:9999"
+    volumes:
+      - "${PROTHEUS_PATH:?Defina PROTHEUS_PATH no .env}/protheus_data:/opt/totvs/protheus/protheus_data"
+      - "${PROTHEUS_PATH}/apo:/opt/totvs/protheus/apo"
+      - ./appserver/ini/main/appserver.ini:/opt/totvs/appserver/appserver.ini
+    depends_on:
+      dbaccess:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "bash", "-c", "</dev/tcp/localhost/9999"]
+      interval: 10s
+      timeout: 3s
+      retries: 30
+      start_period: 60s
+
+  appserver-rest:
+    platform: linux/amd64
+    image: totvsengpro/appserver-dev:24.3.0.5
+    container_name: protheus_rest_2410
+    environment:
+      - TZ=${TIME_ZONE}
+    ports:
+      - "${REST_TCP_HOST_PORT}:9998"
+      - "${REST_HOST_PORT}:3000"
+    volumes:
+      - "${PROTHEUS_PATH}/protheus_data:/opt/totvs/protheus/protheus_data"
+      - "${PROTHEUS_PATH}/apo:/opt/totvs/protheus/apo"
+      - ./appserver/ini/rest/appserver.ini:/opt/totvs/appserver/appserver.ini
+    depends_on:
+      dbaccess:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "bash", "-c", "</dev/tcp/localhost/9998"]
+      interval: 10s
+      timeout: 3s
+      retries: 30
+      start_period: 60s
+
+volumes:
+  postgres-data:
