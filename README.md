@@ -65,7 +65,7 @@ As portas ficam no `.env` e são as mesmas do 2410, então suba um ambiente de c
 - **Credenciais do banco:** estão gravadas nos dados da imagem, por isso não são configuráveis pelo `.env`.
 - **Voltar ao banco original:** `docker compose down -v` apaga o volume e tudo o que foi gravado nele.
 - **Sem o RPO:** o AppServer encerra logo após subir, com `[MPPORT] Function not found`, e deixa um `tttm120.rpo` de 0 byte na pasta do serviço. Basta substituí-lo pelo arquivo do Portal e subir de novo.
-- **RPOs:** no `appserver`, o ambiente `DEV` usa `apo/dev` e o `DEV2` usa `apo/dev2`; o `appserver-rest` usa `apo/rest`. Cada pasta tem o próprio `custom*.rpo`. Aplique patches nas três cópias, para os ambientes não ficarem em versões diferentes.
+- **RPOs:** no `appserver`, o ambiente `DEV` usa `apo/dev` e o `DEV2` usa `apo/dev2`; o `appserver-rest` usa `apo/rest`. Cada pasta tem o próprio `custom*.rpo`.
 - **Mais de um ambiente no WebApp:** a partir da 2510, só abrem pela porta multiprotocolo os ambientes listados em `APP_ENVIRONMENT_EXTRA`, no `[General]` do ini. Ao criar outro ambiente, inclua-o nessa chave.
 - **SmartView:** não faz parte deste ambiente, pois a TOTVS não publica imagem oficial dele.
 - **Apple Silicon:** as imagens só existem para amd64 e rodam emuladas, com desempenho menor que o nativo.
